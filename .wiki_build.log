@@ -1,3 +1,93 @@
 STARTED=2026-06-15T14:13:49+09:00
 npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+
+added 1302 packages, and audited 1303 packages in 1m
+
+424 packages are looking for funding
+  run `npm fund` for details
+
+21 vulnerabilities (20 moderate, 1 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+> dev_wiki@0.1.0 build
+> docusaurus build
+
+[WARNING] The `siteConfig.onBrokenMarkdownLinks` config option is deprecated and will be removed in Docusaurus v4.
+Please migrate and move this option to `siteConfig.markdown.hooks.onBrokenMarkdownLinks` instead.
+[INFO] [ko] Creating an optimized production build...
+[WARNING] The `siteConfig.onBrokenMarkdownLinks` config option is deprecated and will be removed in Docusaurus v4.
+Please migrate and move this option to `siteConfig.markdown.hooks.onBrokenMarkdownLinks` instead.
+[ERROR] Loading of version failed for version current
+
+[ERROR] Error: Unable to build website for locale ko.
+    at tryToBuildLocale (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:76:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async /home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:34:9
+    ... 4 lines matching cause stack trace ...
+    at async file:///home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/bin/docusaurus.mjs:44:3 {
+  [cause]: Error: Can't process doc metadata for doc at path path=/home/jnh/workspace/dev_wiki/docs/index.md in version name=current
+      at processDocMetadata (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/docs.js:152:15)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Promise.all (index 0)
+      ... 18 lines matching cause stack trace ...
+      at async file:///home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/bin/docusaurus.mjs:44:3 {
+    [cause]: Error: An error occurred when trying to get the file last update date from Git
+        at getGitCommitInfo (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/utils/lib/vcs/gitUtils.js:148:19)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async readLastUpdateData (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/utils/lib/lastUpdateUtils.js:49:33)
+        at async doProcessDocMetadata (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/docs.js:53:24)
+        at async processDocMetadata (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/docs.js:149:16)
+        at async Promise.all (index 0)
+        at async loadVersionDocsBase (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/versions/loadVersion.js:63:18)
+        at async doLoadVersion (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/versions/loadVersion.js:72:22)
+        at async loadVersion (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/versions/loadVersion.js:119:16)
+        at async Promise.all (index 0)
+        at async Object.loadContent (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/plugin-content-docs/lib/index.js:152:33)
+        at async /home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/server/plugins/plugins.js:40:23
+        at async Promise.all (index 0)
+        at async /home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/server/plugins/plugins.js:146:25
+        at async loadSite (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/server/site.js:163:45)
+        at async buildLocale (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/buildLocale.js:34:18)
+        at async runBuildLocaleTask (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:91:5)
+        at async /home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:72:13
+        at async tryToBuildLocale (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:68:9)
+        at async /home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:34:9
+        at async mapAsyncSequential (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/utils/lib/jsUtils.js:21:24)
+        at async Command.build (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/build/build.js:33:5)
+        at async Promise.all (index 0)
+        at async runCLI (/home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/lib/commands/cli.js:56:5)
+        at async file:///home/jnh/workspace/dev_wiki/node_modules/@docusaurus/core/bin/docusaurus.mjs:44:3 {
+      [cause]: Error: Command failed with exit code 128: git -c log.showSignature=false log --format=RESULT:%ct,%an --max-count=1 -- "index.md"
+      fatal: your current branch 'main' does not have any commits yet
+          at makeError (/home/jnh/workspace/dev_wiki/node_modules/execa/lib/error.js:60:11)
+          at handlePromise (/home/jnh/workspace/dev_wiki/node_modules/execa/index.js:118:26)
+          at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+          at async run (/home/jnh/workspace/dev_wiki/node_modules/p-queue/dist/index.js:163:29) {
+        shortMessage: 'Command failed with exit code 128: git -c log.showSignature=false log --format=RESULT:%ct,%an --max-count=1 -- "index.md"',
+        command: 'git -c log.showSignature=false log --format=RESULT:%ct,%an --max-count=1 -- "index.md"',
+        escapedCommand: '"git -c log.showSignature=false log --format=RESULT:%ct,%an --max-count=1 -- \\"index.md\\""',
+        exitCode: 128,
+        signal: undefined,
+        signalDescription: undefined,
+        stdout: '',
+        stderr: "fatal: your current branch 'main' does not have any commits yet",
+        failed: true,
+        timedOut: false,
+        isCanceled: false,
+        killed: false
+      }
+    }
+  }
+}
+[INFO] Docusaurus version: 3.10.1
+Node version: v24.16.0
+REMOTE_BUILD_RC=1
+FINISHED=2026-06-15T14:14:55+09:00
