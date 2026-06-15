@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Docusaurus generated files
+.docusaurus/
+build/
+
+# Logs and temporary files
+*.log
+.wiki_build.log
+.wiki_build.status
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
