@@ -1,0 +1,22 @@
+{
+  "id": "decisions/DEC-001-docusaurus-wiki",
+  "title": "DEC-001 Docusaurus ?? Dev Wiki ??",
+  "description": "?? ??? Wiki ?????? Docusaurus? ??? ?? ??",
+  "source": "@site/docs/decisions/DEC-001-docusaurus-wiki.md",
+  "sourceDirName": "decisions",
+  "slug": "/decisions/DEC-001-docusaurus-wiki",
+  "permalink": "/wiki/decisions/DEC-001-docusaurus-wiki",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "title": "DEC-001 Docusaurus ?? Dev Wiki ??",
+    "description": "?? ??? Wiki ?????? Docusaurus? ??? ?? ??"
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "?? ??",
+    "permalink": "/wiki/standards/coding"
+  }
+}

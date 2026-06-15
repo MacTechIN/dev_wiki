@@ -1,0 +1,45 @@
+{
+  "/wiki/search/-9f8": {
+    "__comp": "1a4e3797",
+    "__context": {
+      "plugin": "138e0e15"
+    }
+  },
+  "/wiki/-49f": {
+    "__comp": "5e95c892",
+    "__context": {
+      "plugin": "aba21aa0"
+    }
+  },
+  "/wiki/-03d": {
+    "__comp": "a7bd4aaa",
+    "__props": "895cf92a"
+  },
+  "/wiki/-ba6": {
+    "__comp": "a94703ab"
+  },
+  "/wiki/decisions/DEC-001-docusaurus-wiki/-ada": {
+    "__comp": "17896441",
+    "content": "71a02f53"
+  },
+  "/wiki/development/api/-70e": {
+    "__comp": "17896441",
+    "content": "6f494215"
+  },
+  "/wiki/development/architecture/-baa": {
+    "__comp": "17896441",
+    "content": "769e68cb"
+  },
+  "/wiki/operations/deployment/-25c": {
+    "__comp": "17896441",
+    "content": "a0719ed1"
+  },
+  "/wiki/standards/coding/-15a": {
+    "__comp": "17896441",
+    "content": "874ab710"
+  },
+  "/wiki/-5a3": {
+    "__comp": "17896441",
+    "content": "c377a04b"
+  }
+}

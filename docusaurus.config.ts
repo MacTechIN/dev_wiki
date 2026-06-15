@@ -11,7 +11,11 @@ const config: Config = {
   projectName: 'dev_wiki',
   trailingSlash: true,
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
   i18n: {
     defaultLocale: 'ko',
     locales: ['ko'],
@@ -23,8 +27,9 @@ const config: Config = {
         docs: {
           routeBasePath: '/',
           sidebarPath: './sidebars.ts',
-          showLastUpdateTime: true,
-          showLastUpdateAuthor: true,
+          // ? ???? ??? ??? Git ?? last update ??? ????? ?? ?? ????? ???????.
+          showLastUpdateTime: false,
+          showLastUpdateAuthor: false,
         },
         blog: false,
         theme: {

@@ -1,0 +1,26 @@
+{
+  "id": "development/architecture",
+  "title": "??? ????",
+  "description": "?? ??? ???? ?? ?? ??",
+  "source": "@site/docs/development/architecture.md",
+  "sourceDirName": "development",
+  "slug": "/development/architecture",
+  "permalink": "/wiki/development/architecture",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "title": "??? ????",
+    "description": "?? ??? ???? ?? ?? ??"
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Dev Wiki ??",
+    "permalink": "/wiki/"
+  },
+  "next": {
+    "title": "API ?? ?? ??",
+    "permalink": "/wiki/development/api"
+  }
+}

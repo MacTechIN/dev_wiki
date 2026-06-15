@@ -1,0 +1,26 @@
+{
+  "id": "standards/coding",
+  "title": "?? ??",
+  "description": "??? ?? ?? ?? ??",
+  "source": "@site/docs/standards/coding.md",
+  "sourceDirName": "standards",
+  "slug": "/standards/coding",
+  "permalink": "/wiki/standards/coding",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "title": "?? ??",
+    "description": "??? ?? ?? ?? ??"
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "?? Runbook",
+    "permalink": "/wiki/operations/deployment"
+  },
+  "next": {
+    "title": "DEC-001 Docusaurus ?? Dev Wiki ??",
+    "permalink": "/wiki/decisions/DEC-001-docusaurus-wiki"
+  }
+}

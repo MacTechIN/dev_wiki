@@ -1,0 +1,26 @@
+{
+  "id": "development/api",
+  "title": "API ?? ?? ??",
+  "description": "API ??? ???? ???? ?? ??",
+  "source": "@site/docs/development/api.md",
+  "sourceDirName": "development",
+  "slug": "/development/api",
+  "permalink": "/wiki/development/api",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "title": "API ?? ?? ??",
+    "description": "API ??? ???? ???? ?? ??"
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "??? ????",
+    "permalink": "/wiki/development/architecture"
+  },
+  "next": {
+    "title": "?? Runbook",
+    "permalink": "/wiki/operations/deployment"
+  }
+}

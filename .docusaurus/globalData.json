@@ -1,0 +1,58 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/wiki/",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/wiki/",
+          "mainDocId": "index",
+          "docs": [
+            {
+              "id": "decisions/DEC-001-docusaurus-wiki",
+              "path": "/wiki/decisions/DEC-001-docusaurus-wiki",
+              "sidebar": "docs"
+            },
+            {
+              "id": "development/api",
+              "path": "/wiki/development/api",
+              "sidebar": "docs"
+            },
+            {
+              "id": "development/architecture",
+              "path": "/wiki/development/architecture",
+              "sidebar": "docs"
+            },
+            {
+              "id": "index",
+              "path": "/wiki/",
+              "sidebar": "docs"
+            },
+            {
+              "id": "operations/deployment",
+              "path": "/wiki/operations/deployment",
+              "sidebar": "docs"
+            },
+            {
+              "id": "standards/coding",
+              "path": "/wiki/standards/coding",
+              "sidebar": "docs"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "docs": {
+              "link": {
+                "path": "/wiki/",
+                "label": "index"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}
