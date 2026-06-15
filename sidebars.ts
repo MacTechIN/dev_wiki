@@ -18,6 +18,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'operations/deployment',
+        'operations/llm-wiki-extension',
       ],
     },
     {

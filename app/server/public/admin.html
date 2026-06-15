@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dev Wiki Admin</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; margin: 0; background: #f6f8fb; color: #172033; }
+    main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 64px; }
+    section { background: white; border: 1px solid #d9e0ea; border-radius: 14px; padding: 18px; margin: 16px 0; }
+    input, textarea, button { font: inherit; }
+    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin: 6px 0 12px; }
+    textarea { min-height: 160px; }
+    button { border: 0; border-radius: 8px; padding: 10px 14px; background: #2563eb; color: white; cursor: pointer; }
+    button.secondary { background: #475569; }
+    button.danger { background: #b91c1c; }
+    pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 10px; overflow: auto; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .item { border-top: 1px solid #e2e8f0; padding: 12px 0; }
+    .muted { color: #64748b; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Dev Wiki Admin</h1>
+  <p class="muted">글/파일을 제출하면 LLM Wiki 분류 초안이 생성되고, reviewer/admin 승인 후 Docusaurus 문서로 발행됩니다.</p>
+
+  <section id="login">
+    <h2>로그인</h2>
+    <input id="email" placeholder="email">
+    <input id="password" placeholder="password" type="password">
+    <button onclick="login()">로그인</button>
+    <button class="secondary" onclick="loadMe()">세션 확인</button>
+    <pre id="me"></pre>
+  </section>
+
+  <section>
+    <h2>글 제출</h2>
+    <input id="title" placeholder="제목">
+    <input id="tagHint" placeholder="태그 힌트 예: API, 배포, 표준">
+    <textarea id="body" placeholder="업무 내용, 회의 메모, 개발 지식, 운영 절차 등을 입력하세요."></textarea>
+    <button onclick="submitText()">제출 및 자동 분류</button>
+    <pre id="submitResult"></pre>
+  </section>
+
+  <section>
+    <h2>제출 목록</h2>
+    <button onclick="loadSubmissions()">새로고침</button>
+    <div id="submissions"></div>
+  </section>
+</main>
+
+<script>
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    credentials: 'include',
+    headers: {'content-type': 'application/json', ...(options.headers || {})},
+    ...options,
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  return data;
+}
+
+async function login() {
+  const data = await api('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({email: email.value, password: password.value}),
+  });
+  me.textContent = JSON.stringify(data, null, 2);
+  await loadSubmissions();
+}
+
+async function loadMe() {
+  me.textContent = JSON.stringify(await api('/api/auth/me'), null, 2);
+}
+
+async function submitText() {
+  const data = await api('/api/submissions', {
+    method: 'POST',
+    body: JSON.stringify({title: title.value, body: body.value, tagHint: tagHint.value}),
+  });
+  submitResult.textContent = JSON.stringify(data, null, 2);
+  await loadSubmissions();
+}
+
+async function loadSubmissions() {
+  const list = await api('/api/submissions');
+  submissions.innerHTML = list.map(item => `
+    <div class="item">
+      <strong>${item.title}</strong>
+      <div class="muted">${item.status} / ${item.category || ''} / ${item.created_at}</div>
+      <button onclick="viewSubmission('${item.id}')">초안 보기</button>
+      <button onclick="approve('${item.id}')">승인 발행</button>
+      <button class="danger" onclick="rejectSubmission('${item.id}')">반려</button>
+      <pre id="detail-${item.id}"></pre>
+    </div>
+  `).join('');
+}
+
+async function viewSubmission(id) {
+  document.getElementById(`detail-${id}`).textContent = JSON.stringify(await api(`/api/submissions/${id}`), null, 2);
+}
+
+async function approve(id) {
+  document.getElementById(`detail-${id}`).textContent = JSON.stringify(await api(`/api/reviews/${id}/approve`, {method: 'POST', body: JSON.stringify({note: 'approved from admin UI'})}), null, 2);
+  await loadSubmissions();
+}
+
+async function rejectSubmission(id) {
+  document.getElementById(`detail-${id}`).textContent = JSON.stringify(await api(`/api/reviews/${id}/reject`, {method: 'POST', body: JSON.stringify({note: 'rejected from admin UI'})}), null, 2);
+  await loadSubmissions();
+}
+</script>
+</body>
+</html>

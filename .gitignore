@@ -16,3 +16,11 @@ yarn-error.log*
 # Environment files
 .env
 .env.*
+
+# Dev Wiki LLM extension runtime data
+app/data/*.sqlite
+app/data/*.sqlite-*
+llm_wiki/raw/
+llm_wiki/draft/
+.llm_api.log
+.llm_api.pid

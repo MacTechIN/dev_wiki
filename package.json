@@ -6,7 +6,10 @@
     "start": "docusaurus start --host 0.0.0.0",
     "build": "docusaurus build",
     "serve": "docusaurus serve --host 0.0.0.0",
-    "clear": "docusaurus clear"
+    "clear": "docusaurus clear",
+    "llm:server": "node app/server/server.mjs",
+    "llm:worker": "node app/server/worker.mjs",
+    "user:create": "node app/server/create-user.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "latest",
@@ -16,7 +19,11 @@
     "clsx": "latest",
     "prism-react-renderer": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "fastify": "latest",
+    "@fastify/cookie": "latest",
+    "@fastify/multipart": "latest",
+    "bcryptjs": "latest"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "latest",
