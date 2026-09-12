@@ -18,6 +18,8 @@
 | 관리 UI | `http://100.100.1.100:3100/admin` (API 서버) |
 | 런타임 | Node.js (maindev: v22.23.1 / 개발 당시: v24.16.0) |
 | 현재 진행도 | 파이프라인 **동작 검증 완료**, 운영 배포 **미완료** |
+| 이관 검증 | maindev 실측 완료 → 11장 |
+| 먼저 볼 것 | **6장 운영 함정**, **9장 P1 이슈 2건** |
 
 **프로젝트의 핵심 아이디어**: 팀원이 관리 UI에 글·파일을 제출하면, 원본은
 `llm_wiki/raw/`에 불변 저장되고, 분류기가 카테고리를 정해 초안을 만들고,
@@ -42,6 +44,8 @@ npm run build
 npm run serve -- --port 3000            # http://100.100.1.100:3000/wiki/
 
 # 4) API 서버 + 관리 UI (포트 3100)
+#    ⚠ 서버는 0.0.0.0 에 바인딩됩니다. 쿠키 시크릿을 먼저 설정하세요 (9장 P1)
+export DEV_WIKI_COOKIE_SECRET='<강한 랜덤 값>'
 nohup node app/server/server.mjs >> .llm_api.log 2>&1 & echo $! > .llm_api.pid
 curl -s localhost:3100/api/health       # {"ok":true,"service":"dev-wiki-api"}
                                         # http://100.100.1.100:3100/admin
@@ -244,6 +248,19 @@ stat -c '%y %n' app/server/*.mjs
 
 ## 9. 알려진 이슈 (우선순위순)
 
+### P1 — API 서버가 모든 인터페이스에 노출됨 (보안)
+
+`server.mjs:260`이 `app.listen({host: '0.0.0.0', port})`이라 사내 LAN
+(`192.168.0.131`), tailscale(`100.100.1.100`), docker 브리지까지 전부 열립니다.
+기동 로그에서 확인할 수 있습니다.
+
+동시에 `DEV_WIKI_COOKIE_SECRET`이 설정돼 있지 않으면 코드에 박힌 기본값
+`'dev-wiki-change-this-secret'`을 사용합니다. **이 둘이 겹치면 같은 네트워크에서
+누구나 세션을 위조할 수 있습니다.**
+
+→ 즉시 조치: 강한 `DEV_WIKI_COOKIE_SECRET` 설정. 이어서 `host`를 `127.0.0.1`로
+좁히고 리버스 프록시 뒤에 두거나, 방화벽으로 3100을 제한하세요.
+
 ### P1 — 발행 중 API 서버 전체가 멈춤
 
 `publisher.mjs`의 `runBuild()`가 `execFileSync('npm', ['run','build'])`로
@@ -303,7 +320,49 @@ npm run build
 
 ---
 
-## 11. 이관 시 변경한 사항
+## 11. 이관 검증 결과 (2026-09-12, maindev 실측)
+
+이관 직후 maindev에서 실제로 확인한 항목입니다.
+
+| 검증 항목 | 결과 |
+| --- | --- |
+| 파일 전송 | 4,806개 / 57MB, **체크섬 전량 일치** |
+| Git 이력 | `3b31d522` 동일, `git fsck` 이상 없음 |
+| DB | `integrity_check: ok` — users 2, submissions 2, review_events 5, sessions 8 |
+| 한글 파일명 | NFC 유지, `find`로 정상 매칭 |
+| `npm ci` | 1,348 패키지, 14초, 오류 없음 (**네이티브 빌드 없음**) |
+| `npm run build` | **SUCCESS** — `build/` 1.3MB, `search-index.json` 42KB 생성 |
+| 사이드바 한글 라벨 | 15개 페이지에 정상 출력, 깨진 `?? ??` 0건 |
+| API 기동 | `Server listening ... :3100`, `EADDRINUSE` 없음 |
+| `/api/health` | `{"ok":true,"service":"dev-wiki-api"}` |
+| `/` → `/admin` | 302 리다이렉트 정상, `/admin` 200 |
+| 미인증 접근 차단 | `/api/auth/me` 401, 오류 비밀번호 로그인 401 |
+| **실제 로그인** | **200** — 세션 발급, `/api/users` 200, `/api/submissions` 200 |
+| 위키 서비스 | `/wiki/` 200, `search-index.json` 200, `sitemap.xml` 200 |
+| 한글 URL 문서 | 퍼센트 인코딩 시 200 (2건 모두) |
+
+### Node 버전 차이
+
+개발은 Node **24.16.0**, maindev는 **22.23.1**입니다. 이 프로젝트는
+`node:sqlite`를 쓰는데, Node 22에서는 아직 실험 기능이라 기동할 때마다
+`ExperimentalWarning: SQLite is an experimental feature` 경고가 찍힙니다.
+**동작에는 문제가 없음을 실측으로 확인했습니다**(위 표의 DB·로그인 항목).
+경고가 신경 쓰이면 Node 24 이상으로 올리면 사라집니다.
+
+### 현재 실행 중인 프로세스 (maindev)
+
+```bash
+cd ~/workspace/dev_wiki
+cat .llm_api.pid     # API 서버 (3100)
+cat .wiki_serve.pid  # Docusaurus serve (3000)
+```
+
+두 프로세스는 `nohup`으로 띄워 둔 상태입니다. 재부팅하면 사라지므로
+systemd 등록이 필요합니다(12장 1번).
+
+---
+
+## 12. 이관 시 변경한 사항
 
 경로와 접속 주소가 장비와 함께 바뀌었으므로 문서를 갱신했습니다.
 
@@ -329,10 +388,10 @@ maindev는 LAN `192.168.0.131`로도 접근 가능합니다.
 
 ---
 
-## 12. 다음 작업 제안
+## 13. 다음 작업 제안
 
 1. **운영 배포 완성** — 리버스 프록시로 `/wiki/` 라우팅, API 서버 systemd
-   등록, 재부팅 자동 실행. (maindev에 Caddy가 없으므로 프록시 선택부터)
+   등록, 재부팅 자동 실행. (maindev에 Caddy가 없으므로 프록시 선택부터. P1 보안 이슈와 함께 처리)
 2. **P1 동기 빌드 해소** — 승인 API를 202 + 상태 폴링으로 전환.
 3. **재승인 중복 파일 수정** (P2).
 4. **분류기에 실제 LLM 연결** — 현재 키워드 규칙을 LLM 호출로 교체하고,
@@ -342,7 +401,7 @@ maindev는 LAN `192.168.0.131`로도 접근 가능합니다.
 
 ---
 
-## 13. 참고 문서
+## 14. 참고 문서
 
 | 문서 | 내용 |
 | --- | --- |
