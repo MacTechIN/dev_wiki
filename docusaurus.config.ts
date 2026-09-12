@@ -5,7 +5,7 @@ const config: Config = {
   title: 'Dev Wiki',
   tagline: '사내 개발팀 지식 베이스',
   favicon: 'img/favicon.ico',
-  url: 'http://100.83.34.122',
+  url: 'http://100.100.1.100',
   baseUrl: '/wiki/',
   organizationName: 'internal',
   projectName: 'dev_wiki',

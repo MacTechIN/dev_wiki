@@ -68,14 +68,14 @@ npm run build
 현재 서버에서는 다음 경로를 기준으로 실행합니다.
 
 ```bash
-cd /home/jnh/workspace/dev_wiki
+cd /home/sam/workspace/dev_wiki
 npm run serve -- --port 3000
 ```
 
 접속 주소:
 
 ```text
-http://100.83.34.122:3000/wiki/
+http://100.100.1.100:3000/wiki/
 ```
 
 ## 운영 계획

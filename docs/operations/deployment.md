@@ -25,20 +25,20 @@ npm run serve -- --port 3000
 접속 주소:
 
 ```text
-http://100.83.34.122:3000/wiki/
+http://100.100.1.100:3000/wiki/
 ```
 
 ## 서비스 경로
 
-- 목표 URL: `http://100.83.34.122/wiki/`
-- 현재 테스트 URL: `http://100.83.34.122:3000/wiki/`
+- 목표 URL: `http://100.100.1.100/wiki/`
+- 현재 테스트 URL: `http://100.100.1.100:3000/wiki/`
 - Docusaurus `baseUrl`: `/wiki/`
 
 ## Nginx 설정 예시
 
 ```nginx
 location /wiki/ {
-    alias /home/jnh/workspace/dev_wiki/build/;
+    alias /home/sam/workspace/dev_wiki/build/;
     try_files $uri $uri/ /wiki/index.html;
 }
 ```
