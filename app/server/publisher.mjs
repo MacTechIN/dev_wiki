@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import {appendFileSync, copyFileSync, existsSync, mkdirSync} from 'node:fs';
+import {appendFileSync, copyFileSync, existsSync, mkdirSync, rmSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {nowIso, rootDir} from './db.mjs';
@@ -15,6 +15,14 @@ function ensureUniquePath(relPath) {
   return relPath.replace(/\.md$/, `-${suffix}.md`);
 }
 
+function runBuild() {
+  return execFileSync('npm', ['run', 'build'], {
+    cwd: rootDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
 export function approveSubmission(db, submissionId, reviewer, note = '') {
   const submission = db.prepare('SELECT * FROM submissions WHERE id = ?').get(submissionId);
   if (!submission) throw new Error(`submission not found: ${submissionId}`);
@@ -23,8 +31,25 @@ export function approveSubmission(db, submissionId, reviewer, note = '') {
   }
   const classification = JSON.parse(submission.classification_json);
   const publishedPath = ensureUniquePath(classification.targetPath);
-  mkdirSync(dirname(join(rootDir, publishedPath)), {recursive: true});
-  copyFileSync(join(rootDir, submission.draft_path), join(rootDir, publishedPath));
+  const publishedAbs = join(rootDir, publishedPath);
+
+  // 빌드가 성공해야만 발행을 확정한다. 실패하면 복사한 문서를 되돌려
+  // docs/ 에 깨진 문서가 남아 이후 빌드를 막는 상황을 방지한다.
+  mkdirSync(dirname(publishedAbs), {recursive: true});
+  copyFileSync(join(rootDir, submission.draft_path), publishedAbs);
+
+  let buildOutput;
+  try {
+    buildOutput = runBuild();
+  } catch (buildError) {
+    rmSync(publishedAbs, {force: true});
+    appendWikiLog(`publish-rollback | ${submission.title} | ${publishedPath} | reviewer=${reviewer.email}`);
+    const error = new Error(`build failed, publish rolled back: ${publishedPath}`);
+    error.code = 'BUILD_FAILED';
+    error.cause = buildError;
+    error.buildOutput = `${buildError.stdout || ''}${buildError.stderr || ''}`.trim();
+    throw error;
+  }
 
   db.prepare(`
     UPDATE submissions
@@ -37,11 +62,6 @@ export function approveSubmission(db, submissionId, reviewer, note = '') {
   `).run(crypto.randomUUID(), submissionId, reviewer.id, note, nowIso());
   appendWikiLog(`publish | ${submission.title} | ${publishedPath} | reviewer=${reviewer.email}`);
 
-  const buildOutput = execFileSync('npm', ['run', 'build'], {
-    cwd: rootDir,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
   return {publishedPath, buildOutput};
 }
 

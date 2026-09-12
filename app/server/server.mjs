@@ -5,13 +5,14 @@ import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
 import {openDb, nowIso, rootDir} from './db.mjs';
-import {createSession, requireUser, verifyPassword} from './auth.mjs';
+import {createSession, hashPassword, requireUser, verifyPassword} from './auth.mjs';
 import {classifySubmission} from './classifier.mjs';
 import {approveSubmission, rejectSubmission} from './publisher.mjs';
 
 const port = Number(process.env.DEV_WIKI_API_PORT || 3100);
 const db = openDb();
 const app = Fastify({logger: true, bodyLimit: 10 * 1024 * 1024});
+const roles = new Set(['user', 'reviewer', 'admin']);
 
 await app.register(cookie, {
   secret: process.env.DEV_WIKI_COOKIE_SECRET || 'dev-wiki-change-this-secret',
@@ -27,16 +28,40 @@ function safeName(name) {
   return String(name || 'file').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 160);
 }
 
+function adminHtml() {
+  return readFileSync(join(rootDir, 'app/server/public/admin.html'), 'utf8');
+}
+
+function publicUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    role: row.role,
+    createdAt: row.created_at,
+  };
+}
+
+function assertRole(role) {
+  const normalized = String(role || 'user').trim();
+  if (!roles.has(normalized)) return 'user';
+  return normalized;
+}
+
+app.get('/', async (_request, reply) => reply.redirect('/admin'));
+app.get('/admin.html', async (_request, reply) => reply.redirect('/admin'));
 app.get('/health', async () => ({ok: true, service: 'dev-wiki-api'}));
+app.get('/api/health', async () => ({ok: true, service: 'dev-wiki-api'}));
 
 app.get('/admin', async (_request, reply) => {
   reply.type('text/html; charset=utf-8');
-  return readFileSync(join(rootDir, 'app/server/public/admin.html'), 'utf8');
+  return adminHtml();
 });
 
 app.post('/api/auth/login', async (request, reply) => {
   const {email, password} = request.body || {};
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email || '');
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(String(email || '').trim().toLowerCase());
   if (!user || !(await verifyPassword(password || '', user.password_hash))) {
     return reply.code(401).send({error: 'INVALID_CREDENTIALS'});
   }
@@ -47,15 +72,72 @@ app.post('/api/auth/login', async (request, reply) => {
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60,
   });
-  return {id: user.id, email: user.email, displayName: user.display_name, role: user.role};
+  return publicUser(user);
 });
 
-app.post('/api/auth/logout', {preHandler: requireUser(db)}, async (request, reply) => {
+app.post('/api/auth/logout', {preHandler: requireUser(db)}, async (_request, reply) => {
   reply.clearCookie('devwiki_session', {path: '/'});
   return {ok: true};
 });
 
-app.get('/api/auth/me', {preHandler: requireUser(db)}, async (request) => request.user);
+app.get('/api/auth/me', {preHandler: requireUser(db)}, async (request) => publicUser(request.user));
+
+app.get('/api/users', {preHandler: requireUser(db, ['admin'])}, async () => {
+  return db.prepare(`
+    SELECT id, email, display_name, role, created_at
+    FROM users ORDER BY created_at DESC
+  `).all().map(publicUser);
+});
+
+app.post('/api/users', {preHandler: requireUser(db, ['admin'])}, async (request, reply) => {
+  const email = String(request.body?.email || '').trim().toLowerCase();
+  const displayName = String(request.body?.displayName || email).trim();
+  const password = String(request.body?.password || '');
+  const role = assertRole(request.body?.role);
+  if (!email.includes('@')) return reply.code(400).send({error: 'VALID_EMAIL_REQUIRED'});
+  if (password.length < 8) return reply.code(400).send({error: 'PASSWORD_MIN_8'});
+  const id = crypto.randomUUID();
+  const passwordHash = await hashPassword(password);
+  try {
+    db.prepare(`
+      INSERT INTO users (id, email, display_name, password_hash, role, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, email, displayName, passwordHash, role, nowIso());
+  } catch (error) {
+    if (String(error.message || '').includes('UNIQUE')) return reply.code(409).send({error: 'EMAIL_ALREADY_EXISTS'});
+    throw error;
+  }
+  return reply.code(201).send(publicUser(db.prepare('SELECT * FROM users WHERE id = ?').get(id)));
+});
+
+app.patch('/api/users/:id', {preHandler: requireUser(db, ['admin'])}, async (request, reply) => {
+  const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(request.params.id);
+  if (!existing) return reply.code(404).send({error: 'NOT_FOUND'});
+  const displayName = String(request.body?.displayName ?? existing.display_name).trim() || existing.display_name;
+  const role = assertRole(request.body?.role ?? existing.role);
+  const password = String(request.body?.password || '');
+  if (password) {
+    if (password.length < 8) return reply.code(400).send({error: 'PASSWORD_MIN_8'});
+    db.prepare('UPDATE users SET display_name = ?, role = ?, password_hash = ? WHERE id = ?')
+      .run(displayName, role, await hashPassword(password), existing.id);
+  } else {
+    db.prepare('UPDATE users SET display_name = ?, role = ? WHERE id = ?')
+      .run(displayName, role, existing.id);
+  }
+  return publicUser(db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id));
+});
+
+app.delete('/api/users/:id', {preHandler: requireUser(db, ['admin'])}, async (request, reply) => {
+  if (request.params.id === request.user.id) return reply.code(400).send({error: 'CANNOT_DELETE_SELF'});
+  const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(request.params.id);
+  if (!existing) return reply.code(404).send({error: 'NOT_FOUND'});
+  try {
+    db.prepare('DELETE FROM users WHERE id = ?').run(existing.id);
+  } catch {
+    return reply.code(409).send({error: 'USER_HAS_LINKED_RECORDS'});
+  }
+  return {ok: true};
+});
 
 app.post('/api/submissions', {preHandler: requireUser(db)}, async (request, reply) => {
   const id = crypto.randomUUID();
@@ -149,8 +231,20 @@ app.post('/api/submissions/:id/reclassify', {preHandler: requireUser(db, ['revie
   return classifySubmission(db, request.params.id);
 });
 
-app.post('/api/reviews/:id/approve', {preHandler: requireUser(db, ['reviewer', 'admin'])}, async (request) => {
-  return approveSubmission(db, request.params.id, request.user, request.body?.note || '');
+app.post('/api/reviews/:id/approve', {preHandler: requireUser(db, ['reviewer', 'admin'])}, async (request, reply) => {
+  try {
+    return approveSubmission(db, request.params.id, request.user, request.body?.note || '');
+  } catch (error) {
+    if (error.code === 'BUILD_FAILED') {
+      request.log.error({err: error.cause}, 'publish rolled back after build failure');
+      return reply.code(422).send({
+        error: 'BUILD_FAILED',
+        message: '빌드에 실패해 발행을 취소했습니다. 초안을 수정한 뒤 다시 승인하세요.',
+        buildOutput: error.buildOutput,
+      });
+    }
+    throw error;
+  }
 });
 
 app.post('/api/reviews/:id/reject', {preHandler: requireUser(db, ['reviewer', 'admin'])}, async (request) => {

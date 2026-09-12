@@ -5,7 +5,7 @@ const sidebars: SidebarsConfig = {
     'index',
     {
       type: 'category',
-      label: '?? ??',
+      label: '개발 문서',
       collapsed: false,
       items: [
         'development/architecture',
@@ -14,7 +14,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '?? ??',
+      label: '운영 문서',
       collapsed: false,
       items: [
         'operations/deployment',
@@ -23,7 +23,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '??/???',
+      label: '표준/가이드',
       collapsed: false,
       items: [
         'standards/coding',
@@ -31,7 +31,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '???? ??',
+      label: '의사결정 기록',
       collapsed: false,
       items: [
         'decisions/DEC-001-docusaurus-wiki',

@@ -6,113 +6,247 @@
   <title>Dev Wiki Admin</title>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; margin: 0; background: #f6f8fb; color: #172033; }
-    main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 64px; }
-    section { background: white; border: 1px solid #d9e0ea; border-radius: 14px; padding: 18px; margin: 16px 0; }
-    input, textarea, button { font: inherit; }
-    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin: 6px 0 12px; }
-    textarea { min-height: 160px; }
-    button { border: 0; border-radius: 8px; padding: 10px 14px; background: #2563eb; color: white; cursor: pointer; }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px 18px 64px; }
+    section { background: white; border: 1px solid #d9e0ea; border-radius: 14px; padding: 18px; margin: 16px 0; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    input, textarea, button, select { font: inherit; }
+    input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin: 6px 0 12px; background: white; }
+    textarea { min-height: 150px; }
+    button { border: 0; border-radius: 8px; padding: 9px 13px; background: #2563eb; color: white; cursor: pointer; margin: 2px 4px 2px 0; }
     button.secondary { background: #475569; }
     button.danger { background: #b91c1c; }
+    button.success { background: #15803d; }
     pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 10px; overflow: auto; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .three { display: grid; grid-template-columns: 1.2fr 1fr .8fr; gap: 12px; }
     .item { border-top: 1px solid #e2e8f0; padding: 12px 0; }
     .muted { color: #64748b; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e0ecff; color: #1d4ed8; font-size: 12px; }
+    .ok { color: #15803d; }
+    .error { color: #b91c1c; }
+    @media (max-width: 760px) { .grid, .three { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 <main>
   <h1>Dev Wiki Admin</h1>
-  <p class="muted">글/파일을 제출하면 LLM Wiki 분류 초안이 생성되고, reviewer/admin 승인 후 Docusaurus 문서로 발행됩니다.</p>
+  <p class="muted">Login, submit content, classify drafts, publish documents, and manage users.</p>
 
-  <section id="login">
-    <h2>로그인</h2>
-    <input id="email" placeholder="email">
-    <input id="password" placeholder="password" type="password">
-    <button onclick="login()">로그인</button>
-    <button class="secondary" onclick="loadMe()">세션 확인</button>
+  <section>
+    <h2>1. Login</h2>
+    <div class="grid">
+      <div>
+        <label>Email</label>
+        <input id="email" value="admin@devwiki.local" autocomplete="username">
+      </div>
+      <div>
+        <label>Password</label>
+        <input id="password" placeholder="password" type="password" autocomplete="current-password">
+      </div>
+    </div>
+    <button onclick="login()">Login</button>
+    <button class="secondary" onclick="logout()">Logout</button>
+    <button class="secondary" onclick="loadMe()">Check session</button>
+    <div id="loginStatus" class="muted"></div>
     <pre id="me"></pre>
   </section>
 
   <section>
-    <h2>글 제출</h2>
-    <input id="title" placeholder="제목">
-    <input id="tagHint" placeholder="태그 힌트 예: API, 배포, 표준">
-    <textarea id="body" placeholder="업무 내용, 회의 메모, 개발 지식, 운영 절차 등을 입력하세요."></textarea>
-    <button onclick="submitText()">제출 및 자동 분류</button>
+    <h2>2. User Management</h2>
+    <p class="muted">Admin only. Create accounts and change roles or passwords.</p>
+    <div class="three">
+      <input id="newEmail" placeholder="new.user@example.com">
+      <input id="newName" placeholder="Display name">
+      <select id="newRole"><option value="user">user</option><option value="reviewer">reviewer</option><option value="admin">admin</option></select>
+    </div>
+    <input id="newPassword" type="password" placeholder="Temporary password, minimum 8 characters">
+    <button onclick="createUser()">Create user</button>
+    <button class="secondary" onclick="loadUsers()">Refresh users</button>
+    <div id="userStatus" class="muted"></div>
+    <div id="users"></div>
+  </section>
+
+  <section>
+    <h2>3. Submit Content</h2>
+    <input id="title" placeholder="Title">
+    <input id="tagHint" placeholder="Tag hint: API, deployment, standard, decision">
+    <textarea id="body" placeholder="Write work notes, meeting records, development knowledge, or operation procedures."></textarea>
+    <button onclick="submitText()">Submit and classify</button>
     <pre id="submitResult"></pre>
   </section>
 
   <section>
-    <h2>제출 목록</h2>
-    <button onclick="loadSubmissions()">새로고침</button>
+    <h2>4. Submission Review</h2>
+    <button onclick="loadSubmissions()">Refresh submissions</button>
+    <div id="submissionStatus" class="muted"></div>
     <div id="submissions"></div>
   </section>
 </main>
 
 <script>
+let currentUser = null;
+const $ = (id) => document.getElementById(id);
+
+function setStatus(id, message, isError = false) {
+  const el = $(id);
+  el.className = isError ? 'error' : 'ok';
+  el.textContent = message || '';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+}
+
 async function api(path, options = {}) {
-  const res = await fetch(path, {
-    credentials: 'include',
-    headers: {'content-type': 'application/json', ...(options.headers || {})},
-    ...options,
-  });
+  const headers = options.body instanceof FormData ? (options.headers || {}) : {'content-type': 'application/json', ...(options.headers || {})};
+  const res = await fetch(path, {credentials: 'include', headers, ...options});
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = text; }
-  if (!res.ok) throw new Error(JSON.stringify(data));
+  if (!res.ok) {
+    const message = typeof data === 'string' ? data : (data.error || JSON.stringify(data));
+    throw new Error(message);
+  }
   return data;
 }
 
 async function login() {
-  const data = await api('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({email: email.value, password: password.value}),
-  });
-  me.textContent = JSON.stringify(data, null, 2);
-  await loadSubmissions();
+  try {
+    const data = await api('/api/auth/login', {method: 'POST', body: JSON.stringify({email: $('email').value, password: $('password').value})});
+    currentUser = data;
+    $('me').textContent = JSON.stringify(data, null, 2);
+    setStatus('loginStatus', 'Login success: ' + data.email);
+    await Promise.all([loadUsers(), loadSubmissions()]);
+  } catch (error) {
+    setStatus('loginStatus', 'Login failed: ' + error.message, true);
+  }
+}
+
+async function logout() {
+  try { await api('/api/auth/logout', {method: 'POST'}); } catch {}
+  currentUser = null;
+  $('me').textContent = '';
+  $('users').innerHTML = '';
+  $('submissions').innerHTML = '';
+  setStatus('loginStatus', 'Logged out');
 }
 
 async function loadMe() {
-  me.textContent = JSON.stringify(await api('/api/auth/me'), null, 2);
+  try {
+    currentUser = await api('/api/auth/me');
+    $('me').textContent = JSON.stringify(currentUser, null, 2);
+    setStatus('loginStatus', 'Session active: ' + currentUser.email);
+  } catch (error) {
+    setStatus('loginStatus', 'No active session: ' + error.message, true);
+  }
+}
+
+async function loadUsers() {
+  try {
+    const list = await api('/api/users');
+    $('users').innerHTML = list.map(user => `
+      <div class="item">
+        <strong>${escapeHtml(user.email)}</strong> <span class="badge">${escapeHtml(user.role)}</span>
+        <div class="muted">${escapeHtml(user.displayName)} / ${escapeHtml(user.createdAt)}</div>
+        <div class="three">
+          <input id="name-${user.id}" value="${escapeHtml(user.displayName)}">
+          <select id="role-${user.id}">
+            ${['user','reviewer','admin'].map(role => `<option value="${role}" ${role === user.role ? 'selected' : ''}>${role}</option>`).join('')}
+          </select>
+          <input id="pw-${user.id}" type="password" placeholder="new password optional">
+        </div>
+        <button onclick="updateUser('${user.id}')">Save user</button>
+        <button class="danger" onclick="deleteUser('${user.id}')">Delete user</button>
+      </div>
+    `).join('');
+    setStatus('userStatus', 'Loaded ' + list.length + ' users');
+  } catch (error) {
+    setStatus('userStatus', 'User load failed: ' + error.message, true);
+  }
+}
+
+async function createUser() {
+  try {
+    const data = await api('/api/users', {method: 'POST', body: JSON.stringify({email: $('newEmail').value, displayName: $('newName').value, role: $('newRole').value, password: $('newPassword').value})});
+    setStatus('userStatus', 'Created user: ' + data.email);
+    $('newEmail').value = ''; $('newName').value = ''; $('newPassword').value = '';
+    await loadUsers();
+  } catch (error) {
+    setStatus('userStatus', 'Create failed: ' + error.message, true);
+  }
+}
+
+async function updateUser(id) {
+  try {
+    const data = await api('/api/users/' + id, {method: 'PATCH', body: JSON.stringify({displayName: $('name-' + id).value, role: $('role-' + id).value, password: $('pw-' + id).value})});
+    setStatus('userStatus', 'Updated user: ' + data.email);
+    await loadUsers();
+  } catch (error) {
+    setStatus('userStatus', 'Update failed: ' + error.message, true);
+  }
+}
+
+async function deleteUser(id) {
+  if (!confirm('Delete this user?')) return;
+  try {
+    await api('/api/users/' + id, {method: 'DELETE'});
+    setStatus('userStatus', 'Deleted user');
+    await loadUsers();
+  } catch (error) {
+    setStatus('userStatus', 'Delete failed: ' + error.message, true);
+  }
 }
 
 async function submitText() {
-  const data = await api('/api/submissions', {
-    method: 'POST',
-    body: JSON.stringify({title: title.value, body: body.value, tagHint: tagHint.value}),
-  });
-  submitResult.textContent = JSON.stringify(data, null, 2);
-  await loadSubmissions();
+  try {
+    const data = await api('/api/submissions', {method: 'POST', body: JSON.stringify({title: $('title').value, body: $('body').value, tagHint: $('tagHint').value})});
+    $('submitResult').textContent = JSON.stringify(data, null, 2);
+    setStatus('submissionStatus', 'Submission created: ' + data.id);
+    await loadSubmissions();
+  } catch (error) {
+    $('submitResult').textContent = error.message;
+    setStatus('submissionStatus', 'Submit failed: ' + error.message, true);
+  }
 }
 
 async function loadSubmissions() {
-  const list = await api('/api/submissions');
-  submissions.innerHTML = list.map(item => `
-    <div class="item">
-      <strong>${item.title}</strong>
-      <div class="muted">${item.status} / ${item.category || ''} / ${item.created_at}</div>
-      <button onclick="viewSubmission('${item.id}')">초안 보기</button>
-      <button onclick="approve('${item.id}')">승인 발행</button>
-      <button class="danger" onclick="rejectSubmission('${item.id}')">반려</button>
-      <pre id="detail-${item.id}"></pre>
-    </div>
-  `).join('');
+  try {
+    const list = await api('/api/submissions');
+    $('submissions').innerHTML = list.map(item => `
+      <div class="item">
+        <strong>${escapeHtml(item.title)}</strong>
+        <div class="muted">${escapeHtml(item.status)} / ${escapeHtml(item.category || '')} / ${escapeHtml(item.created_at)}</div>
+        <button onclick="viewSubmission('${item.id}')">View draft</button>
+        <button class="success" onclick="approve('${item.id}')">Approve and publish</button>
+        <button class="danger" onclick="rejectSubmission('${item.id}')">Reject</button>
+        <pre id="detail-${item.id}"></pre>
+      </div>
+    `).join('');
+    setStatus('submissionStatus', 'Loaded ' + list.length + ' submissions');
+  } catch (error) {
+    setStatus('submissionStatus', 'Submission load failed: ' + error.message, true);
+  }
 }
 
 async function viewSubmission(id) {
-  document.getElementById(`detail-${id}`).textContent = JSON.stringify(await api(`/api/submissions/${id}`), null, 2);
+  try { $('detail-' + id).textContent = JSON.stringify(await api('/api/submissions/' + id), null, 2); }
+  catch (error) { $('detail-' + id).textContent = error.message; }
 }
 
 async function approve(id) {
-  document.getElementById(`detail-${id}`).textContent = JSON.stringify(await api(`/api/reviews/${id}/approve`, {method: 'POST', body: JSON.stringify({note: 'approved from admin UI'})}), null, 2);
-  await loadSubmissions();
+  try {
+    $('detail-' + id).textContent = JSON.stringify(await api('/api/reviews/' + id + '/approve', {method: 'POST', body: JSON.stringify({note: 'approved from admin UI'})}), null, 2);
+    await loadSubmissions();
+  } catch (error) { $('detail-' + id).textContent = error.message; }
 }
 
 async function rejectSubmission(id) {
-  document.getElementById(`detail-${id}`).textContent = JSON.stringify(await api(`/api/reviews/${id}/reject`, {method: 'POST', body: JSON.stringify({note: 'rejected from admin UI'})}), null, 2);
-  await loadSubmissions();
+  try {
+    $('detail-' + id).textContent = JSON.stringify(await api('/api/reviews/' + id + '/reject', {method: 'POST', body: JSON.stringify({note: 'rejected from admin UI'})}), null, 2);
+    await loadSubmissions();
+  } catch (error) { $('detail-' + id).textContent = error.message; }
 }
+
+loadMe().then(() => Promise.all([loadUsers(), loadSubmissions()])).catch(() => {});
 </script>
 </body>
 </html>

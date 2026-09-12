@@ -20,7 +20,7 @@ const categoryDir = {
 
 export function slugify(input) {
   return String(input)
-    .normalize('NFKD')
+    .normalize('NFC')
     .replace(/[\\/:*?"<>|#%{}^~[\]`]+/g, ' ')
     .trim()
     .toLowerCase()
@@ -37,6 +37,11 @@ export function classifyText(title, body, tagHint = '') {
     }
   }
   return 'knowledge';
+}
+
+function yamlString(value) {
+  const flat = String(value).replace(/[\r\n]+/g, ' ').trim();
+  return `"${flat.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 function summarize(body) {
@@ -76,8 +81,8 @@ export function classifySubmission(db, submissionId) {
   mkdirSync(dirname(draftPath), {recursive: true});
 
   const draft = `---
-title: ${submission.title.replace(/:/g, ' -')}
-description: ${summary.replace(/:/g, ' -')}
+title: ${yamlString(submission.title)}
+description: ${yamlString(summary)}
 tags: [${category}, llm-wiki]
 ---
 
@@ -130,7 +135,8 @@ ${submission.body || '본문이 비어 있습니다. 첨부 파일을 확인하�
     WHERE id = ?
   `).run(category, summary, draftRelPath, JSON.stringify(classification), nowIso(), submission.id);
 
-  updateIndex(`- [${submission.title}](draft/${submission.id}.md) — ${category}, ${summary}`);
+  const linkLabel = submission.title.replace(/[[\]]/g, (bracket) => `\\${bracket}`);
+  updateIndex(`- [${linkLabel}](draft/${submission.id}.md) — ${category}, ${summary}`);
   appendWikiLog(`classify | ${submission.title} | ${category} | ${submission.id}`);
   return classification;
 }
