@@ -17,7 +17,8 @@
 | 위키 접속 | `http://100.100.1.100:3000/wiki/` (Docusaurus serve) |
 | 관리 UI | `http://100.100.1.100:3100/admin` (API 서버) |
 | 런타임 | Node.js (maindev: v22.23.1 / 개발 당시: v24.16.0) |
-| 현재 진행도 | 파이프라인 **동작 검증 완료**, 운영 배포 **미완료** |
+| 현재 진행도 | 파이프라인 **동작 검증 완료**, 서비스 **systemd 상주**, 리버스 프록시 **미완료** |
+| 서비스 기동 | `systemctl --user start dev-wiki-api dev-wiki-serve` (부팅 자동 실행) |
 | 이관 검증 | maindev 실측 완료 → 11장 |
 | 먼저 볼 것 | **6장 운영 함정**, **9장 P1 이슈 2건** |
 
@@ -31,28 +32,53 @@ reviewer/admin이 승인하면 `docs/` 아래로 발행되며 Docusaurus가 재�
 
 ## 2. 5분 안에 띄우기
 
+두 서비스는 **systemd 사용자 유닛으로 상주**합니다(2026-09-21 등록).
+평상시에는 아래 명령만 쓰면 되고, 수동으로 `node`/`nohup`을 띄울 일은 없습니다.
+
 ```bash
-cd ~/workspace/dev_wiki
-
-# 1) 의존성 (lockfile 그대로 재현)
-npm ci
-
-# 2) 정적 위키 빌드 → build/
-npm run build
-
-# 3) 위키 서비스 (포트 3000)
-npm run serve -- --port 3000            # http://100.100.1.100:3000/wiki/
-
-# 4) API 서버 + 관리 UI (포트 3100)
-#    ⚠ 서버는 0.0.0.0 에 바인딩됩니다. 쿠키 시크릿을 먼저 설정하세요 (9장 P1)
-export DEV_WIKI_COOKIE_SECRET='<강한 랜덤 값>'
-nohup node app/server/server.mjs >> .llm_api.log 2>&1 & echo $! > .llm_api.pid
+# 상태 확인
+systemctl --user status dev-wiki-api dev-wiki-serve
 curl -s localhost:3100/api/health       # {"ok":true,"service":"dev-wiki-api"}
-                                        # http://100.100.1.100:3100/admin
+curl -I localhost:3000/wiki/            # 200
+
+# 기동 / 재시작 / 중지
+systemctl --user start   dev-wiki-api dev-wiki-serve
+systemctl --user restart dev-wiki-api dev-wiki-serve
+systemctl --user stop    dev-wiki-api dev-wiki-serve
+
+# 로그 (nohup 로그 파일 대신 journal 을 봅니다)
+journalctl --user -u dev-wiki-api -f
+journalctl --user -u dev-wiki-serve -n 50
 ```
 
-포트를 바꿔야 하면 `DEV_WIKI_API_PORT=3101 node app/server/server.mjs`.
-**재시작 전에 반드시 6장 「운영 함정」을 읽으세요.**
+소스를 처음 받았거나 의존성이 없다면 먼저 아래를 한 번 실행합니다.
+
+```bash
+cd ~/workspace/dev_wiki
+npm ci          # lockfile 그대로 재현
+npm run build   # 정적 위키 빌드 → build/ (serve 가 이 디렉터리를 서비스)
+```
+
+접속 주소는 위키 `http://100.100.1.100:3000/wiki/`,
+관리 UI `http://100.100.1.100:3100/admin` 입니다.
+
+### 유닛과 환경변수 위치
+
+| 항목 | 경로 |
+| --- | --- |
+| API 유닛 | `~/.config/systemd/user/dev-wiki-api.service` |
+| 위키 유닛 | `~/.config/systemd/user/dev-wiki-serve.service` |
+| 환경변수(시크릿 포함) | `~/.config/dev-wiki/api.env` (모드 600, **저장소 밖**) |
+
+`DEV_WIKI_COOKIE_SECRET`은 이 env 파일에 강한 랜덤 값으로 들어 있습니다.
+포트나 세션 기간을 바꾸려면 env 파일을 고치고
+`systemctl --user restart dev-wiki-api` 하세요.
+
+> 유닛의 `Environment=PATH=...`를 지우지 마세요. 승인 시
+> `publisher.mjs`가 `npm run build`를 **PATH에서 찾아** 실행하는데,
+> systemd 기본 PATH에는 `~/.local/bin`의 node/npm이 없어 발행이 깨집니다.
+
+**운영 함정은 여전히 유효합니다. 6장을 읽으세요.**
 
 ---
 
@@ -171,6 +197,13 @@ stat -c '%y %n' app/server/*.mjs
 기동 실패는 조용합니다. 띄운 직후 `tail -5 .llm_api.log`로 `EADDRINUSE`를
 확인하는 습관을 권합니다.
 
+> **2026-09-21 이후**: 두 서비스를 systemd 사용자 유닛으로 옮겨
+> 이 함정은 사실상 사라졌습니다. systemd가 `MainPID`를 정확히 추적하므로
+> `systemctl --user restart dev-wiki-api` 한 줄이면 확실히 교체됩니다.
+> **`pgrep`으로 찾아 `kill`하지 마세요.** systemd가 모르는 사이에 죽이면
+> `Restart=on-failure`가 다시 띄워 혼란만 커집니다. 기동 확인은
+> `systemctl --user status dev-wiki-api`와 `journalctl --user -u dev-wiki-api`로 합니다.
+
 ### 6-2. 한글 파일명 Unicode 정규화 (NFC / NFD)
 
 분류기의 `slugify()`는 반드시 `.normalize('NFC')`를 써야 합니다. 과거
@@ -235,7 +268,10 @@ stat -c '%y %n' app/server/*.mjs
 
 ### 미완료
 
-- 운영 배포(리버스 프록시, systemd 등록, 재부팅 자동 실행) — **전부 미착수**
+- systemd 등록과 재부팅 자동 실행 — **완료** (2026-09-21, 2장 참고).
+  `Linger=yes`가 켜져 있어 로그인 없이도 부팅 시 기동됩니다.
+- 리버스 프록시(80/443에서 `/wiki/` 라우팅) — **미착수**. maindev에 Caddy도
+  nginx도 설치돼 있지 않아 프록시 선택부터 해야 합니다.
 - 분류기가 **실제 LLM을 호출하지 않습니다.** 현재는 키워드 규칙
   (`categoryRules` in `classifier.mjs`)으로 development/operations/standards/
   decisions/knowledge에 매핑합니다. "LLM 분류"는 아직 이름뿐입니다.
@@ -258,8 +294,17 @@ stat -c '%y %n' app/server/*.mjs
 `'dev-wiki-change-this-secret'`을 사용합니다. **이 둘이 겹치면 같은 네트워크에서
 누구나 세션을 위조할 수 있습니다.**
 
-→ 즉시 조치: 강한 `DEV_WIKI_COOKIE_SECRET` 설정. 이어서 `host`를 `127.0.0.1`로
-좁히고 리버스 프록시 뒤에 두거나, 방화벽으로 3100을 제한하세요.
+**2026-09-21 부분 조치**: 강한 `DEV_WIKI_COOKIE_SECRET`을
+`~/.config/dev-wiki/api.env`(모드 600)에 넣고 systemd 유닛이 주입하도록
+했습니다. 기본 시크릿으로 인한 **세션 위조 위험은 해소**되었습니다.
+이때 기존 세션 8건은 모두 무효화되어 재로그인이 필요합니다.
+
+**남은 조치**: `server.mjs:260`의 `host`는 아직 `0.0.0.0`입니다. 3100은
+여전히 LAN·tailscale·docker 브리지에 열려 있습니다. 모든 API가 로그인을
+요구하는 것은 확인했지만(미인증 401), `host`를 `127.0.0.1`로 좁혀
+리버스 프록시 뒤에 두거나 방화벽으로 3100을 제한해야 마감됩니다.
+같은 장비의 다른 서비스들은 테일넷 IP(`100.100.1.100`)에 직접 바인딩하는
+방식을 씁니다. `host`를 환경변수로 뽑아 같은 방식으로 맞추는 것을 권합니다.
 
 ### P1 — 발행 중 API 서버 전체가 멈춤
 
@@ -351,14 +396,33 @@ npm run build
 
 ### 현재 실행 중인 프로세스 (maindev)
 
+~~두 프로세스는 `nohup`으로 띄워 둔 상태입니다.~~ **이 방식은 2026-09-21에
+systemd 사용자 유닛으로 대체되었습니다.** `.llm_api.pid`,
+`.wiki_serve.pid` 파일은 삭제했습니다(더 이상 쓰지 않습니다).
+
 ```bash
-cd ~/workspace/dev_wiki
-cat .llm_api.pid     # API 서버 (3100)
-cat .wiki_serve.pid  # Docusaurus serve (3000)
+systemctl --user status dev-wiki-api dev-wiki-serve
 ```
 
-두 프로세스는 `nohup`으로 띄워 둔 상태입니다. 재부팅하면 사라지므로
-systemd 등록이 필요합니다(12장 1번).
+### 2026-09-21 재기동 검증
+
+2026-09-18 09:13 재부팅으로 두 서비스가 모두 내려가 있던 것을 발견해
+systemd로 등록하고 다시 띄웠습니다. 아래는 등록 직후 실측입니다.
+
+| 검증 항목 | 결과 |
+| --- | --- |
+| 유닛 활성화 | `dev-wiki-api`, `dev-wiki-serve` 모두 `enabled` + `active` |
+| 부팅 자동 실행 | `Linger=yes`, `default.target.wants`에 심볼릭 링크 2건 |
+| 실패 자동 복구 | `Restart=on-failure`, `RestartSec=5s` |
+| 리스닝 | 3100(API), 3000(위키) 모두 확인 |
+| `/api/health` | `{"ok":true,"service":"dev-wiki-api"}` |
+| `/` → `/admin` | 302 리다이렉트, `/admin` 200 |
+| 미인증 차단 | `/api/auth/me` 401, 오류 비밀번호 로그인 401 |
+| 위키 | `/wiki/` 200, `search-index.json` 200, `sitemap.xml` 200 |
+| 테일넷 IP 접근 | `100.100.1.100`의 3000·3100 모두 200 |
+| 시크릿 주입 | 기본값 아님 확인 (env 파일 값 주입됨) |
+| 발행용 PATH | 프로세스 환경에 `~/.local/bin` 포함, `npm` 확인 |
+| 재시작 복구 | `systemctl --user restart` 후 두 서비스 정상 응답 |
 
 ---
 
@@ -390,8 +454,10 @@ maindev는 LAN `192.168.0.131`로도 접근 가능합니다.
 
 ## 13. 다음 작업 제안
 
-1. **운영 배포 완성** — 리버스 프록시로 `/wiki/` 라우팅, API 서버 systemd
-   등록, 재부팅 자동 실행. (maindev에 Caddy가 없으므로 프록시 선택부터. P1 보안 이슈와 함께 처리)
+1. ~~**운영 배포 완성**~~ — systemd 등록과 재부팅 자동 실행은 2026-09-21
+   완료. **남은 것은 리버스 프록시뿐입니다.** 80/443에서 `/wiki/`로
+   라우팅하고, 그때 API의 `0.0.0.0` 바인딩도 함께 좁히세요(9장 P1).
+   maindev에 Caddy도 nginx도 없으므로 프록시 선택부터 해야 합니다.
 2. **P1 동기 빌드 해소** — 승인 API를 202 + 상태 폴링으로 전환.
 3. **재승인 중복 파일 수정** (P2).
 4. **분류기에 실제 LLM 연결** — 현재 키워드 규칙을 LLM 호출로 교체하고,
