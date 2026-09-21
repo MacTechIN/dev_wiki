@@ -35,6 +35,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'decisions/DEC-001-docusaurus-wiki',
+        'decisions/DEC-002-llm-classification-and-change-history',
       ],
     },
   ],
